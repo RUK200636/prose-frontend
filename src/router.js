@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Privacy from './pages/Privacy.vue'
+import Terms from './pages/Terms.vue'
 
 // Функция для обновления мета-тегов
 function updateMetaTags(meta) {
@@ -127,6 +129,24 @@ const routes = [
       description: 'Регистрация в личном кабинете.',
       robots: 'noindex, nofollow'
     }
+  },
+  {
+    path: '/privacy',
+    component: Privacy,
+    meta: {
+      title: 'Политика конфиденциальности | PROSESITE',
+      description: 'Политика конфиденциальности косметологического центра PROSESITE',
+      robots: 'index, follow'
+    }
+  },
+  {
+    path: '/terms',
+    component: Terms,
+    meta: {
+      title: 'Условия использования | PROSESITE',
+      description: 'Условия использования сайта косметологического центра PROSESITE',
+      robots: 'index, follow'
+    }
   }
 ]
 
@@ -135,7 +155,6 @@ const router = createRouter({
   routes,
 })
 
-// Защитник маршрутов — все страницы доступны без авторизации
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
     document.title = to.meta.title
@@ -143,7 +162,6 @@ router.beforeEach((to, from, next) => {
     document.title = 'PROSESITE - Косметология Владивостока'
   }
   updateMetaTags(to.meta)
-  // Пропускаем все маршруты без проверки
   next()
 })
 
