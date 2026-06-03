@@ -1,31 +1,20 @@
 <template>
   <div class="contact-page">
-    <!-- Кнопка назад -->
     <button @click="$router.back()" class="back-btn">← Вернуться назад</button>
-
     <h1 class="page-title">Связь с администрацией</h1>
-
     <p class="description">
       Оставьте свой номер телефона и вопрос — мы свяжемся с вами в ближайшее время
     </p>
-
     <div class="form-container">
       <form @submit.prevent="handleSubmit" class="simple-form">
         <div class="input-group">
           <label>Ваше имя</label>
           <input v-model="form.name" type="text" placeholder="Как к вам обращаться" />
         </div>
-
         <div class="input-group">
           <label>Номер телефона *</label>
-          <input
-            v-model="form.phone"
-            type="tel"
-            placeholder="+7 (999) 123-45-67"
-            required
-          />
+          <input v-model="form.phone" type="tel" placeholder="+7 (999) 123-45-67" required />
         </div>
-
         <div class="input-group">
           <label>Тема обращения</label>
           <select v-model="form.topic" class="service-select">
@@ -37,21 +26,13 @@
             <option value="Другое">Другое</option>
           </select>
         </div>
-
         <div class="input-group">
           <label>Ваш вопрос *</label>
-          <textarea
-            v-model="form.message"
-            class="comment-textarea"
-            placeholder="Опишите ваш вопрос подробнее..."
-            required
-          ></textarea>
+          <textarea v-model="form.message" class="comment-textarea" placeholder="Опишите ваш вопрос подробнее..." required></textarea>
         </div>
-
         <div class="info-note">
-          <p> Мы свяжемся с вами по указанному номеру телефона</p>
+          <p>Мы свяжемся с вами по указанному номеру телефона</p>
         </div>
-
         <button type="submit" class="submit-btn">Отправить обращение</button>
       </form>
     </div>
@@ -63,62 +44,22 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-
-const form = ref({
-  name: "",
-  phone: "",
-  topic: "",
-  message: "",
-});
+const form = ref({ name: "", phone: "", topic: "", message: "" });
 
 function handleSubmit() {
-  // Проверка обязательных полей
-  if (!form.value.phone) {
-    alert("Пожалуйста, укажите номер телефона");
-    return;
-  }
-
-  if (!form.value.message) {
-    alert("Пожалуйста, напишите ваш вопрос");
-    return;
-  }
-
-  // Простая валидация телефона
+  if (!form.value.phone) { alert("Пожалуйста, укажите номер телефона"); return; }
+  if (!form.value.message) { alert("Пожалуйста, напишите ваш вопрос"); return; }
   const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/;
   if (!phoneRegex.test(form.value.phone.replace(/\s/g, ""))) {
     alert("Пожалуйста, введите корректный номер телефона");
     return;
   }
-
-  // Сохраняем обращение в localStorage (позже заменим на отправку на сервер)
-  const requestData = {
-    ...form.value,
-    timestamp: new Date().toISOString(),
-    status: "новое",
-  };
-
-  // Получаем существующие обращения или создаём новый массив
+  const requestData = { ...form.value, timestamp: new Date().toISOString(), status: "новое" };
   const existingRequests = JSON.parse(localStorage.getItem("contactRequests") || "[]");
   existingRequests.push(requestData);
   localStorage.setItem("contactRequests", JSON.stringify(existingRequests));
-
-  console.log("Отправлено обращение:", requestData);
-
-  // Показываем сообщение об успехе
-  const userName = form.value.name ? form.value.name : "Уважаемый клиент";
-  alert(
-    `${userName}! Ваше обращение отправлено. Мы свяжемся с вами по телефону ${form.value.phone} в ближайшее время.`
-  );
-
-  // Очищаем форму
-  form.value = {
-    name: "",
-    phone: "",
-    topic: "",
-    message: "",
-  };
-
-  // Перенаправляем на главную
+  alert(`Уважаемый клиент! Ваше обращение отправлено. Мы свяжемся с вами по телефону ${form.value.phone} в ближайшее время.`);
+  form.value = { name: "", phone: "", topic: "", message: "" };
   router.push("/");
 }
 </script>

@@ -12,36 +12,36 @@
         <div class="input-group">
           <label for="name">Имя *</label>
           <input
-            v-model="form.name"
-            type="text"
-            id="name"
-            placeholder="Введите ваше имя"
-            required
-            class="form-input"
+              v-model="form.name"
+              type="text"
+              id="name"
+              placeholder="Введите ваше имя"
+              required
+              class="form-input"
           />
         </div>
 
         <div class="input-group">
           <label for="email">Email *</label>
           <input
-            v-model="form.email"
-            type="email"
-            id="email"
-            placeholder="email@example.com"
-            required
-            class="form-input"
+              v-model="form.email"
+              type="email"
+              id="email"
+              placeholder="email@example.com"
+              required
+              class="form-input"
           />
         </div>
 
         <div class="input-group">
           <label for="phone">Телефон *</label>
           <input
-            v-model="form.phone"
-            type="tel"
-            id="phone"
-            placeholder="+7 (999) 123-45-67"
-            required
-            class="form-input"
+              v-model="form.phone"
+              type="tel"
+              id="phone"
+              placeholder="+7 (999) 123-45-67"
+              required
+              class="form-input"
           />
         </div>
 
@@ -49,12 +49,12 @@
           <label for="password">Пароль *</label>
           <div class="password-wrapper">
             <input
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              id="password"
-              placeholder="Придумайте пароль"
-              required
-              class="password-input"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                id="password"
+                placeholder="Придумайте пароль"
+                required
+                class="password-input"
             />
             <button type="button" class="toggle-password" @click="togglePassword">
               {{ showPassword ? "👁️" : "👁️‍🗨️" }}
@@ -66,12 +66,12 @@
           <label for="confirmPassword">Подтвердите пароль *</label>
           <div class="password-wrapper">
             <input
-              v-model="form.confirmPassword"
-              :type="showConfirmPassword ? 'text' : 'password'"
-              id="confirmPassword"
-              placeholder="Повторите пароль"
-              required
-              class="password-input"
+                v-model="form.confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                id="confirmPassword"
+                placeholder="Повторите пароль"
+                required
+                class="password-input"
             />
             <button type="button" class="toggle-password" @click="toggleConfirmPassword">
               {{ showConfirmPassword ? "👁️" : "👁️‍🗨️" }}
@@ -119,6 +119,8 @@ const showConfirmPassword = ref(false);
 const isLoading = ref(false);
 const errorMessage = ref("");
 
+const API_BASE = 'https://prose-backend.onrender.com/api';
+
 function togglePassword() {
   showPassword.value = !showPassword.value;
 }
@@ -131,60 +133,29 @@ function goBack() {
   router.back();
 }
 
-function saveUserToStorage(email, password, name, phone) {
-  const existingUsers = JSON.parse(localStorage.getItem('users') || '[]')
-  
-  const userExists = existingUsers.some(user => user.login === email)
-  
-  if (userExists) {
-    errorMessage.value = 'Пользователь с таким email уже зарегистрирован'
-    return false
-  }
-  
-  existingUsers.push({ 
-    login: email,
-    password: password,
-    name: name,
-    phone: phone,
-    registeredAt: new Date().toISOString()
-  })
-  
-  localStorage.setItem('users', JSON.stringify(existingUsers))
-  
-  console.log('✅ Пользователь сохранён:', email)
-  return true
-}
-
 async function handleRegister() {
-  console.log("Начало регистрации с данными:", form.value);
-
   errorMessage.value = "";
 
   if (!form.value.name) {
     errorMessage.value = "Введите имя";
     return;
   }
-
   if (!form.value.email) {
     errorMessage.value = "Введите email";
     return;
   }
-
   if (!form.value.phone) {
     errorMessage.value = "Введите телефон";
     return;
   }
-
   if (!form.value.password) {
     errorMessage.value = "Введите пароль";
     return;
   }
-
   if (form.value.password !== form.value.confirmPassword) {
     errorMessage.value = "Пароли не совпадают";
     return;
   }
-
   if (!form.value.agreeTerms) {
     errorMessage.value = "Необходимо согласиться с условиями";
     return;
@@ -193,38 +164,31 @@ async function handleRegister() {
   isLoading.value = true;
 
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const response = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.value.name,
+        email: form.value.email,
+        phone: form.value.phone,
+        password: form.value.password,
+      })
+    });
 
-    const saved = saveUserToStorage(
-      form.value.email,
-      form.value.password,
-      form.value.name,
-      form.value.phone
-    )
-    
-    if (!saved) {
-      isLoading.value = false
-      return
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Ошибка регистрации');
     }
 
-    const userData = {
-      name: form.value.name,
-      email: form.value.email,
-      phone: form.value.phone,
-      isRegistered: true,
-      registrationDate: new Date().toISOString(),
-    };
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
-    localStorage.setItem("userData", JSON.stringify(userData));
-
-    console.log("Данные сохранены в localStorage");
-
-    alert(`✅ Регистрация прошла успешно!\nДобро пожаловать, ${form.value.name}!`);
-
+    alert(`✅ Регистрация прошла успешно!\nДобро пожаловать, ${data.user.name}!`);
     router.push("/");
-  } catch (error) {
-    console.error("Ошибка регистрации:", error);
-    errorMessage.value = "Ошибка регистрации. Попробуйте еще раз.";
+  } catch (err) {
+    errorMessage.value = err.message;
+    console.error(err);
   } finally {
     isLoading.value = false;
   }

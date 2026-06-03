@@ -7,7 +7,6 @@
     </div>
 
     <div class="cabinet-grid">
-      <!-- Карточка профиля -->
       <div class="card profile-card">
         <div class="card-icon"></div>
         <h3>Профиль</h3>
@@ -31,7 +30,6 @@
         </div>
       </div>
 
-      <!-- Карточка записей -->
       <div class="card appointments-card">
         <div class="card-icon"></div>
         <h3>Мои записи</h3>
@@ -39,21 +37,21 @@
           <p>Для просмотра записей войдите в аккаунт</p>
           <router-link to="/login" class="btn-link">Войти →</router-link>
         </div>
-        <div v-else-if="userAppointments.length === 0" class="empty-state">
+        <div v-else-if="appointments.length === 0" class="empty-state">
           <p>У вас пока нет записей</p>
           <router-link to="/price" class="btn-link">Записаться →</router-link>
         </div>
         <div v-else class="appointments-list">
-          <div v-for="app in userAppointments" :key="app.id" class="appointment-item">
+          <div v-for="app in appointments" :key="app.id" class="appointment-item">
             <div class="app-info">
               <span class="app-service">{{ app.service }}</span>
               <span class="app-date">{{ formatDateTime(app.date) }}</span>
             </div>
             <span :class="['app-status', app.status]">{{ getStatusText(app.status) }}</span>
-            <button 
-              v-if="app.status === 'pending'" 
-              class="cancel-btn" 
-              @click="cancelAppointment(app.id)"
+            <button
+                v-if="app.status === 'pending'"
+                class="cancel-btn"
+                @click="cancelAppointment(app.id)"
             >
               Отменить
             </button>
@@ -70,69 +68,59 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-// Состояние авторизации
+const router = useRouter()
+const API_BASE = 'https://prose-backend.onrender.com/api'
+
 const isLoggedIn = ref(false)
-
-// Данные пользователя
 const userName = ref('')
 const userEmail = ref('')
 const userPhone = ref('')
+const appointments = ref([])
 
-// Все записи
-const allAppointments = ref([])
-
-// Функция получения email пользователя
-function getUserEmail() {
-  const user = localStorage.getItem('user')
-  if (user) {
-    const userData = JSON.parse(user)
-    return userData.login || userData.email || ''
+async function loadUserData() {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    isLoggedIn.value = false
+    return
   }
-  return ''
-}
-
-// Фильтрация записей текущего пользователя
-const userAppointments = computed(() => {
-  const currentEmail = getUserEmail()
-  if (!currentEmail) return []
-  return allAppointments.value.filter(app => {
-    const appEmail = app.userEmail || ''
-    return appEmail === currentEmail
-  })
-})
-
-function loadUserData() {
-  const user = localStorage.getItem('user')
-  if (user) {
-    const userData = JSON.parse(user)
-    userEmail.value = userData.login || userData.email || ''
-    userName.value = userData.name || userData.login || 'Пользователь'
-    userPhone.value = userData.phone || ''
-    isLoggedIn.value = true
-  } else {
-    // Проверяем userData (регистрация без входа)
-    const userDataStorage = localStorage.getItem('userData')
-    if (userDataStorage) {
-      const data = JSON.parse(userDataStorage)
-      userEmail.value = data.email || ''
-      userName.value = data.name || 'Пользователь'
-      userPhone.value = data.phone || ''
+  try {
+    const response = await fetch(`${API_BASE}/user`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (response.ok) {
+      const user = await response.json()
+      userName.value = user.name
+      userEmail.value = user.email
+      userPhone.value = user.phone || ''
       isLoggedIn.value = true
     } else {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
       isLoggedIn.value = false
-      userEmail.value = ''
-      userName.value = ''
-      userPhone.value = ''
     }
+  } catch (err) {
+    console.error(err)
+    isLoggedIn.value = false
   }
 }
 
-function loadAppointments() {
-  const saved = localStorage.getItem('appointments')
-  if (saved) {
-    allAppointments.value = JSON.parse(saved)
+async function loadAppointments() {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  try {
+    const response = await fetch(`${API_BASE}/appointments`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (response.ok) {
+      appointments.value = await response.json()
+    } else {
+      console.error('Failed to load appointments')
+    }
+  } catch (err) {
+    console.error(err)
   }
 }
 
@@ -151,39 +139,52 @@ function getStatusText(status) {
   return statusMap[status] || status
 }
 
-function cancelAppointment(id) {
-  if (confirm('Отменить запись?')) {
-    const index = allAppointments.value.findIndex(a => a.id === id)
-    if (index !== -1) {
-      allAppointments.value[index].status = 'cancelled'
-      localStorage.setItem('appointments', JSON.stringify(allAppointments.value))
+async function cancelAppointment(id) {
+  if (!confirm('Отменить запись?')) return
+  const token = localStorage.getItem('token')
+  try {
+    const response = await fetch(`${API_BASE}/appointments/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (response.ok) {
+      await loadAppointments()
+      alert('Запись отменена')
+    } else {
+      alert('Не удалось отменить запись')
     }
+  } catch (err) {
+    console.error(err)
+    alert('Ошибка')
   }
 }
 
-// Функция выхода — просто очищаем данные, остаёмся на странице
-function logout() {
+async function logout() {
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    } catch (e) {}
+  }
   localStorage.removeItem('token')
   localStorage.removeItem('user')
-  localStorage.removeItem('user_session')
-  localStorage.removeItem('userData')
-  
-  // Очищаем локальные переменные
   isLoggedIn.value = false
-  userEmail.value = ''
-  userName.value = ''
-  userPhone.value = ''
-  
-  alert('Вы вышли из аккаунта')
+  router.push('/')
 }
 
 onMounted(() => {
   loadUserData()
-  loadAppointments()
+  if (isLoggedIn.value) {
+    loadAppointments()
+  }
 })
 </script>
 
 <style scoped>
+/* Ваши оригинальные стили из Cabinet.vue – полностью скопированы из вашего файла */
 .cabinet {
   max-width: 800px;
   margin: 0 auto;
@@ -389,11 +390,11 @@ onMounted(() => {
   .cabinet {
     padding: 30px 15px;
   }
-  
+
   .cabinet-header h1 {
     font-size: 2rem;
   }
-  
+
   .cabinet-grid {
     grid-template-columns: 1fr;
   }

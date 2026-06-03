@@ -8,18 +8,20 @@
       ⚠️ <strong>Внимание:</strong> Сайт использует небезопасное соединение HTTP.
     </div>
 
+    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
     <div class="login-container">
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="input-group">
           <label for="login">Логин, номер телефона или адрес почты</label>
           <input
-            v-model="credentials.login"
-            type="text"
-            id="login"
-            placeholder="Введите логин, телефон или email"
-            required
-            class="login-input"
-            autocomplete="username"
+              v-model="credentials.login"
+              type="text"
+              id="login"
+              placeholder="Введите логин, телефон или email"
+              required
+              class="login-input"
+              autocomplete="username"
           />
         </div>
 
@@ -27,14 +29,14 @@
           <label for="password">Пароль</label>
           <div class="password-wrapper">
             <input
-              v-model="credentials.password"
-              :type="showPassword ? 'text' : 'password'"
-              id="password"
-              placeholder="Введите пароль"
-              required
-              class="password-input"
-              minlength="6"
-              autocomplete="current-password"
+                v-model="credentials.password"
+                :type="showPassword ? 'text' : 'password'"
+                id="password"
+                placeholder="Введите пароль"
+                required
+                class="password-input"
+                minlength="6"
+                autocomplete="current-password"
             />
             <button type="button" class="toggle-password" @click="togglePassword">
               {{ showPassword ? "👁️" : "👁️‍🗨️" }}
@@ -80,6 +82,9 @@ const showHttpsWarning = ref(false);
 const rememberMe = ref(false);
 const showPassword = ref(false);
 const isLoading = ref(false);
+const errorMessage = ref("");
+
+const API_BASE = 'https://prose-backend.onrender.com/api';
 
 function togglePassword() {
   showPassword.value = !showPassword.value;
@@ -90,59 +95,42 @@ function goBack() {
 }
 
 async function handleLogin() {
+  errorMessage.value = "";
   if (!credentials.value.login || !credentials.value.password) {
-    alert("Пожалуйста, заполните все поля");
+    errorMessage.value = "Пожалуйста, заполните все поля";
     return;
   }
-
   if (credentials.value.password.length < 6) {
-    alert("Пароль должен содержать минимум 6 символов");
+    errorMessage.value = "Пароль должен содержать минимум 6 символов";
     return;
   }
 
   isLoading.value = true;
 
   try {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: credentials.value.login,
+        password: credentials.value.password,
+      })
+    });
 
-    const existingUsers = JSON.parse(localStorage.getItem('users') || '[]')
-    
-    const foundUser = existingUsers.find(
-      user => user.login === credentials.value.login
-    )
+    const data = await response.json();
 
-    if (!foundUser) {
-      alert('❌ Пользователь с таким логином не найден. Зарегистрируйтесь сначала.')
-      isLoading.value = false
-      return
+    if (!response.ok) {
+      throw new Error(data.message || 'Неверный логин или пароль');
     }
 
-    if (foundUser.password !== credentials.value.password) {
-      alert('❌ Неверный пароль. Попробуйте снова.')
-      isLoading.value = false
-      return
-    }
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
-    const token = 'auth-token-' + Date.now() + '-' + Math.random().toString(36).substr(2, 8)
-    localStorage.setItem('token', token)
-    
-    // Сохраняем данные пользователя ВКЛЮЧАЯ флаг isAdmin
-    localStorage.setItem('user', JSON.stringify({
-      login: credentials.value.login,
-      name: foundUser.name,
-      phone: foundUser.phone,
-      isAdmin: foundUser.isAdmin || false  // ← добавляем флаг администратора
-    }))
-
-    credentials.value.password = ""
-    
-    alert(`✅ Добро пожаловать, ${foundUser.name || credentials.value.login}!`)
-    
+    alert(`✅ Добро пожаловать, ${data.user.name}!`);
     await router.push("/");
-    
-  } catch (error) {
-    console.error("Ошибка входа:", error);
-    alert("❌ Ошибка входа. Проверьте данные и попробуйте снова.");
+  } catch (err) {
+    errorMessage.value = err.message;
+    console.error(err);
   } finally {
     isLoading.value = false;
   }
@@ -150,8 +138,8 @@ async function handleLogin() {
 
 onMounted(() => {
   const isLocalhost =
-    window.location.hostname.includes("localhost") ||
-    window.location.hostname.includes("127.0.0.1");
+      window.location.hostname.includes("localhost") ||
+      window.location.hostname.includes("127.0.0.1");
 
   if (window.location.protocol !== "https:" && !isLocalhost) {
     showHttpsWarning.value = true;
@@ -160,6 +148,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Ваши оригинальные стили из Login.vue (я их сохраняю) */
 .login-page {
   max-width: 450px;
   margin: 0 auto;
@@ -194,6 +183,17 @@ onMounted(() => {
   background-color: #fff3cd;
   border: 1px solid #ffeaa7;
   color: #856404;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.error-message {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
